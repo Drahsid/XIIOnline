@@ -51,6 +51,8 @@ int main()
             lastFullSync = clock();
         }
 
+        if (server->connectedPeers <= 0) initQuest(); //Reset server data
+
         while (enet_host_service(server, &event, 0) > 0)
         {
             char peerHostName[17];
@@ -75,6 +77,7 @@ int main()
                 if (event.packet->dataLength >= sizeof(PType)) {
                     wPacket = new PacketWrapper(&event);
                     wPacket->InterpretData(server, packet, &event);
+                    wPacket->~PacketWrapper();
                 }
 
                 enet_packet_destroy(event.packet);
@@ -94,6 +97,7 @@ int main()
                 event.peer->data = NULL;
             }
         }
+        Sleep(1);
     }
 
     enet_host_destroy(server);

@@ -109,9 +109,11 @@ struct PacketWrapper {
             break;
         case TypeServer::UpdateStoryProgress:
             printf("Update Story Progress\n");
-            
-            if (((uint16_t*)PacketData)[2] > storyProgress) {
-                packet = WritePacketData(TypeClient::RecieveStoryProgress, (uint8_t*)response, (uint8_t*)PacketData + sizeof(PType), sizeof(uint16_t));
+
+            printf("Recieved story progress: %d\n", *((uint16_t*)PacketData));
+            if (*((uint16_t*)PacketData) > storyProgress) {
+                storyProgress = *((uint16_t*)PacketData);
+                packet = WritePacketData(TypeClient::RecieveStoryProgress, (uint8_t*)response, (uint8_t*)&storyProgress, sizeof(uint16_t));
                 BouncePacket(event->peer, packet, server);
             }
 

@@ -16,8 +16,7 @@ uint8_t questStatus[8];
 uint8_t markStates[368];
 uint16_t storyProgress = 0;
 
-void initQuest() {
-    
+void initQuest() { 
     memset(questProgressStage, 0, s0);
     memset(questStatus, 0, s1);
     memset(markStates, 0, s2);
@@ -40,6 +39,11 @@ void FullQuestUpdate(ENetPacket* packet, ENetHost* host) {
     ((int*)data)[0] = (PType)TypeClient::RecieveMarkStates;
     memcpy_s(data + sizeof(PType), s2, markStates, s2);
     packet = enet_packet_create(data, s2, ENET_PACKET_FLAG_RELIABLE);
+    BouncePacket(nullptr, packet, host);
+
+    ((int*)data)[0] = (PType)TypeClient::RecieveStoryProgress;
+    memcpy_s(data + sizeof(PType), sizeof(uint16_t), questStatus, sizeof(uint16_t));
+    packet = enet_packet_create(data, sizeof(uint16_t), ENET_PACKET_FLAG_RELIABLE);
     BouncePacket(nullptr, packet, host);
 }
 
