@@ -37,7 +37,6 @@ int main()
 
     initQuest();
 
-    PacketWrapper wPacket;
     ENetEvent event;
     Puppet newPuppet;
     clock_t lastFullSync = 0;
@@ -58,6 +57,8 @@ int main()
             #pragma warning (disable : 6054)
             enet_address_get_host_ip(&event.peer->address, peerHostName, strlen(peerHostName));
             
+            PacketWrapper* wPacket = nullptr;
+
             switch (event.type)
             {
             case ENET_EVENT_TYPE_CONNECT:
@@ -72,8 +73,8 @@ int main()
                 break;
             case ENET_EVENT_TYPE_RECEIVE:
                 if (event.packet->dataLength >= sizeof(PType)) {
-                    wPacket = PacketWrapper(&event);
-                    wPacket.InterpretData(server, packet, &event);
+                    wPacket = new PacketWrapper(&event);
+                    wPacket->InterpretData(server, packet, &event);
                 }
 
                 enet_packet_destroy(event.packet);

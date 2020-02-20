@@ -56,7 +56,7 @@ bool CheckForChange(uint8_t* lhs, uint8_t* rhs, size_t length) {
          if (i < length - 1) printf(", ");
     }
 
-    printf("Changed? %d\n", didChange);
+    printf(" Changed? %d\n", didChange);
 
     return didChange;
 }

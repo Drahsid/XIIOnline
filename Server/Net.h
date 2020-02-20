@@ -14,11 +14,12 @@ std::vector<Puppet> puppets;
 struct PacketWrapper {
     PType Type = TypeServer::Undefined;
     size_t DataLength = 0;
-    void* PacketData;
+    void* PacketData = nullptr;
 
     PacketWrapper() {}
     ~PacketWrapper() {
-        free(PacketData);
+        printf("PacketWrapper destroyed\n");
+        if (PacketData != nullptr) free(PacketData);
     }
     PacketWrapper(ENetEvent* event) {
         printf("Wrapping packet... ");
@@ -70,13 +71,7 @@ struct PacketWrapper {
             break;
         case TypeServer::UpdatePlayerPosition:
             if (event->packet->dataLength >= sizeof(PType) + sizeof(Vector3f)) {
-                
-                //TODO: Looks like data is being freed before this function is called... ?
-                // Vector3 data is wrong unless we get it directly from the packed; must fix
-                data = malloc(sizeof(Vector3f));
-                memcpy_s(data, sizeof(Vector3f), event->packet->data + sizeof(PType), sizeof(Vector3f));
-                printf("%s has sent position data: %s", peerHostName, ((Vector3f*)PacketData)->toString().c_str());
-                printf(" ...%f, %f, %f\n", ((Vector3f*)data)->x, ((Vector3f*)data)->y, ((Vector3f*)data)->z);
+                printf("%s has sent position data: %s\n", peerHostName, ((Vector3f*)PacketData)->toString().c_str());
                 
                 for (size_t i = 0; i < puppets.size(); i++) {
                     Puppet* p = &puppets.at(i);
@@ -86,7 +81,7 @@ struct PacketWrapper {
                     }
                 }
             }
-            else printf("%s has sent incomplete position data!", peerHostName);
+            else printf("%s has sent incomplete position data!\n", peerHostName);
             break;
         case TypeServer::UpdateQuestPS:
             printf("Update Quest PS\n");
