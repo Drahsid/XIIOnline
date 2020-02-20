@@ -32,13 +32,13 @@
     <ClInclude Include="Puppet.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="Net.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="PacketWrapper.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="Hunts.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Net.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

@@ -4,9 +4,9 @@
 #include "Vector3.h"
 #include "Config.h"
 #include "Puppet.h"
+#include "Net.h"
 #include "PacketWrapper.h"
 #include "Hunts.h"
-#include "Net.h"
 #include "enet/enet.h"
 
 
@@ -47,7 +47,7 @@ int main()
         if ((clock() - lastFullSync) / CLOCKS_PER_SEC > 5)
         {
             printf("Sending full sync to players\n");
-            FullQuestUpdate(packet, server);
+            FullQuestUpdate(server);
             lastFullSync = clock();
         }
 
@@ -70,7 +70,7 @@ int main()
                 if (puppets.empty()) newPuppet.isHost = true;
                 puppets.push_back(newPuppet);
 
-                FullQuestUpdate(packet, server);
+                FullQuestUpdate(server);
                 
                 break;
             case ENET_EVENT_TYPE_RECEIVE:

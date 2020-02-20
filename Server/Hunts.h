@@ -23,28 +23,36 @@ void initQuest() {
     storyProgress = 0;
 }
 
-void FullQuestUpdate(ENetPacket* packet, ENetHost* host) {
-    uint8_t* data = (uint8_t*)malloc((sizeof(uint8_t) * 368) + sizeof(int));
+void FullQuestUpdate(ENetHost* host) {
+    ENetPacket* packet0;
+    ENetPacket* packet1;
+    ENetPacket* packet2;
+    ENetPacket* packet3;
+    
+    uint8_t* data0 = (uint8_t*)malloc((sizeof(uint8_t) * 257) + sizeof(PType));
+    uint8_t* data1 = (uint8_t*)malloc((sizeof(uint8_t) * 8) + sizeof(PType));
+    uint8_t* data2 = (uint8_t*)malloc((sizeof(uint8_t) * 368) + sizeof(PType));
+    uint8_t* data3 = (uint8_t*)malloc(sizeof(uint16_t) + sizeof(PType));
 
-    ((int*)data)[0] = (PType)TypeClient::RecieveQuestPS;
-    memcpy_s(data + sizeof(PType), s0, questProgressStage, s0);
-    packet = enet_packet_create(data, s0, ENET_PACKET_FLAG_RELIABLE);
-    BouncePacket(nullptr, packet, host);
+    ((PType*)data0)[0] = (PType)TypeClient::RecieveQuestPS;
+    memcpy_s(data0 + sizeof(PType), s0, questProgressStage, s0);
+    packet0 = enet_packet_create(data0, s0, ENET_PACKET_FLAG_RELIABLE);
+    BouncePacket(nullptr, packet0, host);
 
-    ((int*)data)[0] = (PType)TypeClient::RecieveQuestStatus;
-    memcpy_s(data + sizeof(PType), s1, questStatus, s1);
-    packet = enet_packet_create(data, s1, ENET_PACKET_FLAG_RELIABLE);
-    BouncePacket(nullptr, packet, host);
+    ((PType*)data1)[0] = (PType)TypeClient::RecieveQuestStatus;
+    memcpy_s(data1 + sizeof(PType), s1, questStatus, s1);
+    packet1 = enet_packet_create(data1, s1, ENET_PACKET_FLAG_RELIABLE);
+    BouncePacket(nullptr, packet1, host);
 
-    ((int*)data)[0] = (PType)TypeClient::RecieveMarkStates;
-    memcpy_s(data + sizeof(PType), s2, markStates, s2);
-    packet = enet_packet_create(data, s2, ENET_PACKET_FLAG_RELIABLE);
-    BouncePacket(nullptr, packet, host);
+    ((PType*)data2)[0] = (PType)TypeClient::RecieveMarkStates;
+    memcpy_s(data2 + sizeof(PType), s2, markStates, s2);
+    packet2 = enet_packet_create(data2, s2, ENET_PACKET_FLAG_RELIABLE);
+    BouncePacket(nullptr, packet2, host);
 
-    ((int*)data)[0] = (PType)TypeClient::RecieveStoryProgress;
-    memcpy_s(data + sizeof(PType), sizeof(uint16_t), questStatus, sizeof(uint16_t));
-    packet = enet_packet_create(data, sizeof(uint16_t), ENET_PACKET_FLAG_RELIABLE);
-    BouncePacket(nullptr, packet, host);
+    ((PType*)data3)[0] = (PType)TypeClient::RecieveStoryProgress;
+    memcpy_s(data3 + sizeof(PType), sizeof(uint16_t), &storyProgress, sizeof(uint16_t));
+    packet3 = enet_packet_create(data3, sizeof(PType) + sizeof(uint16_t), ENET_PACKET_FLAG_RELIABLE);
+    BouncePacket(nullptr, packet3, host);
 }
 
 

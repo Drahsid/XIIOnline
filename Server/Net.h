@@ -2,130 +2,69 @@
 
 #ifndef NET_H
 #define NET_H
-#include <map>
-#include "PacketWrapper.h"
-#include "Hunts.h"
-#include "enet/enet.h"
 
-bool hasHostPlayer = false;
-ENetHost* server;
-std::vector<Puppet> puppets;
+typedef int PType;
 
-struct PacketWrapper {
-    PType Type = TypeServer::Undefined;
-    size_t DataLength = 0;
-    void* PacketData = nullptr;
-
-    PacketWrapper() {}
-    ~PacketWrapper() {
-        printf("PacketWrapper destroyed\n");
-        if (PacketData != nullptr) free(PacketData);
-    }
-    PacketWrapper(ENetEvent* event) {
-        printf("Wrapping packet... ");
-        DataLength = event->packet->dataLength - sizeof(PType);
-        printf("sizeof: %d, ", DataLength);
-        Type = *(PType*)event->packet->data;
-        printf(" typeof: %d, ", Type);
-        PacketData = malloc(DataLength);
-        printf(" malloc'd data, ");
-        memcpy_s(PacketData, DataLength, event->packet->data + sizeof(PType), DataLength);
-        printf(" copied data!\n");
-    }
-
-    void InterpretData(ENetHost* host, ENetPacket* packet, ENetEvent* event) {
-        void* response = nullptr;
-        void* data = nullptr;
-        char peerHostName[17];
-        enet_packet_destroy(packet); //Make sure this is dead
-        packet = nullptr;
-
-#pragma warning (disable : 6001)
-#pragma warning (disable : 6011)
-#pragma warning (disable : 6054)
-
-        enet_address_get_host_ip(&event->peer->address, peerHostName, strlen(peerHostName));
-        
-        switch (Type)
-        {
-        case TypeServer::Ping:
-            printf("Recieved ping from %s\n", peerHostName);
-            packet = enet_packet_create(&TypeClient::Ping, sizeof(PType), ENET_PACKET_FLAG_RELIABLE);
-            break;
-        case TypeServer::CheckHost:
-            printf("%s has asked if they are the host player\n", peerHostName);
-            
-            response = malloc(sizeof(PType) + sizeof(int));
-            
-            ((PType*)(response))[0] = (PType)TypeClient::RecieveHost;
-            ((int*)(response))[1] = 0;
-
-            for (size_t i = 0; i < puppets.size(); i++) {
-                Puppet* p = &puppets.at(i);
-                if (p->isHost && p->host == event->peer->host->address.host) {
-                    ((PType*)(response))[1] = 1;
-                    break;
-                }
-            }
-            packet = enet_packet_create(response, sizeof(PType) + sizeof(int), ENET_PACKET_FLAG_RELIABLE);
-            break;
-        case TypeServer::UpdatePlayerPosition:
-            if (event->packet->dataLength >= sizeof(PType) + sizeof(Vector3f)) {
-                printf("%s has sent position data: %s\n", peerHostName, ((Vector3f*)PacketData)->toString().c_str());
-                
-                for (size_t i = 0; i < puppets.size(); i++) {
-                    Puppet* p = &puppets.at(i);
-                    if (p->host == event->peer->host->address.host) {
-                        p->position = *(Vector3f*)response;
-                        break;
-                    }
-                }
-            }
-            else printf("%s has sent incomplete position data!\n", peerHostName);
-            break;
-        case TypeServer::UpdateQuestPS:
-            printf("Update Quest PS\n");
-            
-            if (CheckForChange((uint8_t*)PacketData, questProgressStage, s0)) {
-                packet = WritePacketData(TypeClient::RecieveQuestPS, (uint8_t*)response, questProgressStage, s0);
-                BouncePacket(event->peer, packet, server);
-            }
-            break;
-        case TypeServer::UpdateQuestStatus:
-            printf("Update QS\n");
-
-            if (CheckForChange((uint8_t*)PacketData, questProgressStage, s1)) {
-                packet = WritePacketData(TypeClient::RecieveQuestStatus, (uint8_t*)response, questStatus, s1);
-                BouncePacket(event->peer, packet, server);
-            }
-            break;
-        case TypeServer::UpdateMarkStates:
-            printf("Update MS\n");
-
-            if (CheckForChange((uint8_t*)PacketData, questProgressStage, s2)) {
-                packet = WritePacketData(TypeClient::RecieveMarkStates, (uint8_t*)response, markStates, s2);
-                BouncePacket(event->peer, packet, server);
-            }
-            break;
-        case TypeServer::UpdateStoryProgress:
-            printf("Update Story Progress\n");
-
-            printf("Recieved story progress: %d\n", *((uint16_t*)PacketData));
-            if (*((uint16_t*)PacketData) > storyProgress) {
-                storyProgress = *((uint16_t*)PacketData);
-                packet = WritePacketData(TypeClient::RecieveStoryProgress, (uint8_t*)response, (uint8_t*)&storyProgress, sizeof(uint16_t));
-                BouncePacket(event->peer, packet, server);
-            }
-
-            printf("New story progress: %d\n", storyProgress);
-            break;
-        }
-
-        if (packet != nullptr) enet_peer_send(event->peer, 0, packet);
-        if (response != nullptr) free(response);
-        if (data != nullptr) free(data);
-    }
+struct PacketType {
+    static const int Undefined = -1,
+        Ping = 0,
+        Count = 8;
 };
 
-#endif // !NET_H
+struct TypeServer : public PacketType {
+    static const int CheckHost = 1,
+        UpdatePlayerPosition = 2,
+        UpdatePlayerRotation = 3,
+        UpdateQuestPS = 4,
+        UpdateQuestStatus = 5, //Marks
+        UpdateMarkStates = 6,
+        UpdateStoryProgress = 7;
+};
+
+struct TypeClient : public PacketType {
+    static const int RecieveHost = 1,
+        RecievePosition = 2,
+        RecieveRotation = 3,
+        RecieveQuestPS = 4,
+        RecieveQuestStatus = 5, //Marks
+        RecieveMarkStates = 6,
+        RecieveStoryProgress = 7;
+};
+
+void BouncePacket(ENetPeer* inPlayer, ENetPacket* packet, ENetHost* server) {
+    for (int i = 0; i < server->connectedPeers; i++) {
+        if (&server->peers[i] != inPlayer || inPlayer == nullptr) {
+            enet_peer_send(&server->peers[i], 0, packet);
+        }
+    }
+}
+
+//Check for changes, set new data, and return. lhs is new data, rhs is old data; writes new to old
+bool CheckForChange(uint8_t* lhs, uint8_t* rhs, size_t length) {
+    bool didChange = false;
+    printf("i: ");
+    for (size_t i = 0; i < length; i++) {
+        printf("%d", i);
+        if (lhs[i] > rhs[i]) {
+            rhs[i] = lhs[i];
+            didChange++;
+            printf("++");
+        }
+        if (i < length - 1) printf(", ");
+    }
+
+    printf(" Changed? %d\n", didChange);
+
+    return didChange;
+}
+
+//rhs is the data to write
+ENetPacket* WritePacketData(PType type, uint8_t* response, uint8_t* rhs, size_t length) {
+    response = (uint8_t*)malloc(length + sizeof(PType));
+    ((PType*)response)[0] = type;
+    memcpy_s(response + sizeof(PType), length, rhs, length);
+    return enet_packet_create(response, length + sizeof(PType), ENET_PACKET_FLAG_RELIABLE);
+}
+
+#endif
 
