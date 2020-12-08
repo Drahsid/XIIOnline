@@ -168,6 +168,7 @@
     <ClInclude Include="Puppet.h" />
     <ClInclude Include="Quaternion.h" />
     <ClInclude Include="Hunts.h" />
+    <ClInclude Include="StoryProgress.h" />
     <ClInclude Include="Vector3.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

@@ -7,10 +7,28 @@
 #include "Net.h"
 #include "Hunts.h"
 #include "enet/enet.h"
+#include "StoryProgress.h"
 
-bool hasHostPlayer = false;
 ENetHost* server;
-std::vector<Puppet> puppets;
+Puppet puppets[64];
+
+struct ActorDataStatic {
+    Vector3 pos;
+    Vector3 dir;
+    float yaw;
+};
+
+struct ActorDataDynamic {
+    Vector3 pos;
+    float yaw;
+};
+
+struct ActorNetData {
+    uint32_t* base;
+    ActorDataStatic s;
+    //ActorDataDynamic d;
+};
+
 
 struct PacketWrapper {
     PType Type = TypeServer::Undefined;
@@ -19,24 +37,25 @@ struct PacketWrapper {
 
     PacketWrapper() {}
     ~PacketWrapper() {
-        printf("PacketWrapper destroyed\n");
+        //printf("PacketWrapper destroyed\n");
         if (PacketData != nullptr) free(PacketData);
     }
     PacketWrapper(ENetEvent* event) {
-        printf("Wrapping packet... ");
+        //printf("Wrapping packet... ");
         DataLength = event->packet->dataLength - sizeof(PType);
-        printf("sizeof: %d, ", DataLength);
+        //printf("sizeof: %d, ", DataLength);
         Type = *(PType*)event->packet->data;
-        printf(" typeof: %d, ", Type);
+        //printf(" typeof: %d, ", Type);
         PacketData = malloc(DataLength);
-        printf(" malloc'd data, ");
+        //printf(" malloc'd data, ");
         memcpy_s(PacketData, DataLength, event->packet->data + sizeof(PType), DataLength);
-        printf(" copied data!\n");
+        //printf(" copied data!\n");
     }
 
     void InterpretData(ENetHost* host, ENetPacket* packet, ENetEvent* event) {
         void* response = nullptr;
         void* data = nullptr;
+        //Puppet* plrPuppet = nullptr;
         char peerHostName[17];
         enet_packet_destroy(packet); //Make sure this is dead
         packet = nullptr;
@@ -54,35 +73,29 @@ struct PacketWrapper {
             packet = enet_packet_create(&TypeClient::Ping, sizeof(PType), ENET_PACKET_FLAG_RELIABLE);
             break;
         case TypeServer::CheckHost:
-            printf("%s has asked if they are the host player\n", peerHostName);
+            printf("%s has asked if they are the host of their scene\n", peerHostName);
 
             response = malloc(sizeof(PType) + sizeof(int));
 
             ((PType*)(response))[0] = (PType)TypeClient::RecieveHost;
             ((int*)(response))[1] = 0;
 
-            for (size_t i = 0; i < puppets.size(); i++) {
-                Puppet* p = &puppets.at(i);
-                if (p->isHost && p->host == event->peer->host->address.host) {
-                    ((PType*)(response))[1] = 1;
-                    break;
-                }
-            }
-            packet = enet_packet_create(response, sizeof(PType) + sizeof(int), ENET_PACKET_FLAG_RELIABLE);
-            break;
-        case TypeServer::UpdatePlayerPosition:
-            if (event->packet->dataLength >= sizeof(PType) + sizeof(Vector3f)) {
-                printf("%s has sent position data: %s\n", peerHostName, ((Vector3f*)PacketData)->toString().c_str());
-
-                for (size_t i = 0; i < puppets.size(); i++) {
-                    Puppet* p = &puppets.at(i);
-                    if (p->host == event->peer->host->address.host) {
-                        p->position = *(Vector3f*)response;
+            for (size_t i = 0; i < maxPups; i++) {
+                if (!puppets[i].isCache) {
+                    Puppet* p = &puppets[i];
+                    if (p->isHost && p->host == event->peer->host->address.host) {
+                        ((PType*)(response))[1] = 1;
                         break;
                     }
                 }
             }
-            else printf("%s has sent incomplete position data!\n", peerHostName);
+            packet = enet_packet_create(response, sizeof(PType) + sizeof(int), ENET_PACKET_FLAG_RELIABLE);
+            break;
+        case TypeServer::UpdateActorTransform:
+            printf("Update Actor Transforms\n");
+
+            packet = WritePacketData(TypeClient::RecieveActorTransform, (uint8_t*)response, (uint8_t*)PacketData, (sizeof(ActorNetData) * 24) + sizeof(PType) + sizeof(int));
+            BouncePacket(event->peer, packet, server);
             break;
         case TypeServer::UpdateQuestPS:
             printf("Update Quest PS\n");
@@ -118,7 +131,32 @@ struct PacketWrapper {
                 BouncePacket(event->peer, packet, server);
             }
 
-            printf("New story progress: %d\n", storyProgress);
+            printf("New story progress: %d %s\n", storyProgress, eStoryProgress.at(storyProgress).c_str());
+            break;
+        case TypeServer::UpdateSceneId:
+            printf("Player %s has updated their scene Id\n", peerHostName);
+            /*data = malloc(sizeof(int));
+            
+            for (size_t i = 0; i < maxPups; i++) {
+                if (!puppets[i].isCache) {
+                    Puppet* p = &puppets[i];
+                    if (p->host == event->peer->host->address.host) {
+                        p->scene = *(int*)PacketData;
+                        plrPuppet = p;
+                    }
+                    else if (p->scene == *(int*)PacketData && p->host != event->peer->host->address.host) {
+                        (*(int*)data)++;
+                    }
+                }
+            }
+
+            //TODO: Automate this so host transfers when a player leaves a scene
+            if (plrPuppet != nullptr) {
+                if (*(int*)data == 0) plrPuppet->isHost = true;
+                else if (*(int*)data > 0) plrPuppet->isHost = false;
+                plrPuppet->activeSlot = *(int*)data + 1;
+            }*/
+
             break;
         }
 

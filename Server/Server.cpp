@@ -1,4 +1,5 @@
 #include <iostream>
+#include <cstdio>
 #include <vector>
 #include <ctime>
 #include "Vector3.h"
@@ -13,9 +14,14 @@
 #define WIN32_LEAN_AND_MEAN
 
 UserConfig config;
+uint32_t uidPos = 0;
 
 int main()
 {
+    for (int i = 0; i < maxPups; i++) {
+        puppets[i] = Puppet();
+    }
+
     config.UpdateUserConfig();
 
     enet_initialize();
@@ -26,7 +32,7 @@ int main()
 
     address.host = ENET_HOST_ANY;
     address.port = config.serverPort;
-    server = enet_host_create(&address, MaxConnections, 2, 0, 0);
+    server = enet_host_create(&address, 16, 2, 0, 0);
     printf("enet_host_create\n");
 
     if (server == NULL)
@@ -61,14 +67,30 @@ int main()
             
             PacketWrapper* wPacket = nullptr;
 
+            bool foundSlot = false;
+
             switch (event.type)
             {
             case ENET_EVENT_TYPE_CONNECT:
                 printf("A new client connected from %s:%u.\n", peerHostName, event.peer->address.port);
+                uidPos++;
                 newPuppet = Puppet();
                 newPuppet.host = event.peer->address.host;
-                if (puppets.empty()) newPuppet.isHost = true;
-                puppets.push_back(newPuppet);
+                newPuppet.uid = uidPos;
+
+
+                for (int i = 0; i < maxPups; i++) {
+                    if (puppets[i].isCache) {
+                        puppets[i] = newPuppet;
+                        puppets[i].isCache = false;
+                        foundSlot = true;
+                        break;
+                    }
+                }
+
+                if (!foundSlot) printf("Could not add a puppet for %s\n", peerHostName);
+                else foundSlot = false;
+                
 
                 FullQuestUpdate(server);
                 
@@ -87,10 +109,10 @@ int main()
             case ENET_EVENT_TYPE_DISCONNECT:
                 printf("%s disconnected.\n", peerHostName);
                 
-                for (size_t i = 0; i < puppets.size(); i++) {
-                    Puppet* p = &puppets.at(i);
+                for (size_t i = 0; i < maxPups; i++) {
+                    Puppet* p = &puppets[i];
                     if (p->host == event.peer->address.host) {
-                        puppets.erase(puppets.begin() + i);
+                        p->isCache = true;
                     }
                 }
 

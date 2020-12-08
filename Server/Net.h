@@ -3,37 +3,38 @@
 #ifndef NET_H
 #define NET_H
 
+constexpr uint32_t maxPups = 32;
+
 typedef int PType;
 
 struct PacketType {
     static const int Undefined = -1,
         Ping = 0,
-        Count = 8;
+        Count = 10;
 };
 
 struct TypeServer : public PacketType {
     static const int CheckHost = 1,
-        UpdatePlayerPosition = 2,
-        UpdatePlayerRotation = 3,
-        UpdateQuestPS = 4,
-        UpdateQuestStatus = 5, //Marks
-        UpdateMarkStates = 6,
-        UpdateStoryProgress = 7;
+        UpdateActorTransform = 2,
+        UpdateQuestPS = 3,
+        UpdateQuestStatus = 4, //Marks
+        UpdateMarkStates = 5,
+        UpdateStoryProgress = 6,
+        UpdateSceneId = 7;
 };
 
 struct TypeClient : public PacketType {
     static const int RecieveHost = 1,
-        RecievePosition = 2,
-        RecieveRotation = 3,
-        RecieveQuestPS = 4,
-        RecieveQuestStatus = 5, //Marks
-        RecieveMarkStates = 6,
-        RecieveStoryProgress = 7;
+        RecieveActorTransform = 2,
+        RecieveQuestPS = 3,
+        RecieveQuestStatus = 4, //Marks
+        RecieveMarkStates = 5,
+        RecieveStoryProgress = 6;
 };
 
 void BouncePacket(ENetPeer* inPlayer, ENetPacket* packet, ENetHost* server) {
     for (int i = 0; i < server->connectedPeers; i++) {
-        if (&server->peers[i] != inPlayer || inPlayer == nullptr) {
+        if (inPlayer == nullptr || server->peers[i].connectID != inPlayer->connectID) {
             enet_peer_send(&server->peers[i], 0, packet);
         }
     }
